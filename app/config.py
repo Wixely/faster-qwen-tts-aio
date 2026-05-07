@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # Models
     base_model_id: str = "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
     custom_voice_model_id: str = ""
-    builtin_speakers: List[str] = ["aiden", "serena"]
+    builtin_speakers: Annotated[List[str], NoDecode] = ["aiden", "serena"]
 
     # Defaults applied when a request omits the value
     default_language: str = "English"
