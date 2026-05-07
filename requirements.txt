@@ -1,0 +1,13 @@
+# NOTE: torch is intentionally not pinned here. The Docker image is built on
+# pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime which ships torch 2.5.1.
+# For local dev install torch from https://pytorch.org/get-started/locally/.
+
+faster-qwen3-tts>=0.2.6
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+soundfile>=0.12.1
+numpy>=1.26.0
+wyoming>=1.8.0

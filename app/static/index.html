@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>faster-qwen-tts-aio</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d2230;
+    --fg: #e7e9ee;
+    --muted: #9aa3b2;
+    --accent: #7aa2f7;
+    --accent-2: #2ac3a2;
+    --danger: #f7768e;
+    --border: #2a2f3d;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f7f8fb;
+      --panel: #ffffff;
+      --panel-2: #f1f3f8;
+      --fg: #1b1f29;
+      --muted: #5b6473;
+      --accent: #3458d6;
+      --accent-2: #1f8a70;
+      --danger: #c93e58;
+      --border: #d8dde7;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--panel);
+  }
+  header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  header .meta { color: var(--muted); font-size: 12px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .tabs button {
+    background: none;
+    color: var(--muted);
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .tabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .panel h2 { margin: 0 0 12px 0; font-size: 16px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    background: var(--panel-2);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row.three { grid-template-columns: 2fr 1fr 1fr; }
+  .actions { margin-top: 12px; display: flex; gap: 8px; align-items: center; }
+  button.primary, button.secondary, button.danger {
+    border: 0;
+    border-radius: 6px;
+    padding: 9px 14px;
+    font: inherit;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); color: white; }
+  button.secondary { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border); }
+  button.danger { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+  button[disabled] { opacity: 0.5; cursor: not-allowed; }
+  audio { width: 100%; margin-top: 10px; }
+  .status { font-size: 12px; color: var(--muted); }
+  .voice-list { display: grid; gap: 10px; }
+  .voice-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .voice-card .meta { font-size: 12px; color: var(--muted); }
+  .voice-card .meta span + span::before { content: " · "; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .badge.builtin { color: var(--accent); border-color: var(--accent); }
+  .badge.custom { color: var(--accent-2); border-color: var(--accent-2); }
+  .empty { color: var(--muted); padding: 16px; text-align: center; border: 1px dashed var(--border); border-radius: 8px; }
+  .toast {
+    position: fixed;
+    right: 18px;
+    bottom: 18px;
+    background: var(--panel);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  pre.kv { background: var(--panel-2); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; }
+  details summary { cursor: pointer; user-select: none; padding: 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>faster-qwen-tts-aio</h1>
+  <div class="meta" id="status-meta">loading…</div>
+</header>
+
+<div class="container">
+  <div class="tabs">
+    <button data-tab="test" class="active">Test</button>
+    <button data-tab="voices">Voices</button>
+    <button data-tab="status">Status</button>
+  </div>
+
+  <section data-panel="test">
+    <div class="panel">
+      <h2>Synthesise</h2>
+      <label for="text">Text</label>
+      <textarea id="text" placeholder="Enter text to synthesise…">Hello! This is a test of the Qwen 3 text to speech engine.</textarea>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label for="voice">Voice</label>
+          <select id="voice"></select>
+        </div>
+        <div>
+          <label for="format">Format</label>
+          <select id="format">
+            <option value="wav">wav</option>
+            <option value="flac">flac</option>
+            <option value="mp3">mp3 (needs ffmpeg)</option>
+            <option value="opus">opus (needs ffmpeg)</option>
+            <option value="aac">aac (needs ffmpeg)</option>
+            <option value="pcm">pcm (raw 24kHz s16le)</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="btn-synth">Synthesise</button>
+        <span class="status" id="synth-status"></span>
+      </div>
+      <audio id="player" controls></audio>
+    </div>
+  </section>
+
+  <section data-panel="voices" hidden>
+    <div class="panel">
+      <h2>Upload a custom voice</h2>
+      <p class="status">
+        Upload a 5–15 second clip of clear speech and provide its exact transcript.
+        Custom voices require the BASE model to be loaded.
+      </p>
+      <form id="voice-form">
+        <div class="row three">
+          <div>
+            <label for="v-name">Name</label>
+            <input id="v-name" name="name" type="text" placeholder="e.g. alice" required pattern="[A-Za-z0-9][A-Za-z0-9_\-]{0,63}">
+          </div>
+          <div>
+            <label for="v-language">Language</label>
+            <input id="v-language" name="language" type="text" placeholder="English">
+          </div>
+          <div>
+            <label for="v-audio">Reference audio</label>
+            <input id="v-audio" name="audio" type="file" accept="audio/*" required>
+          </div>
+        </div>
+        <div style="margin-top:10px">
+          <label for="v-transcript">Transcript (exact words spoken in the clip)</label>
+          <textarea id="v-transcript" name="transcript" required></textarea>
+        </div>
+        <div class="actions">
+          <button class="primary" type="submit">Save voice</button>
+          <span class="status" id="upload-status"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Voices</h2>
+      <div id="voice-list" class="voice-list"></div>
+    </div>
+  </section>
+
+  <section data-panel="status" hidden>
+    <div class="panel">
+      <h2>Service status</h2>
+      <pre class="kv" id="status-json">loading…</pre>
+    </div>
+    <div class="panel">
+      <h2>Integration hints</h2>
+      <details open><summary>Open WebUI</summary>
+        <p class="status">Admin Panel → Settings → Audio → TTS Engine: <strong>OpenAI</strong>.</p>
+        <ul class="status">
+          <li>API Base URL: <code id="hint-base"></code></li>
+          <li>API Key: any non-empty value (or your <code>OPENAI_API_KEY</code>)</li>
+          <li>TTS Model: <code>qwen-tts</code></li>
+          <li>TTS Voice: any name from the Voices tab</li>
+        </ul>
+      </details>
+      <details><summary>Home Assistant (Wyoming)</summary>
+        <p class="status">Add the Wyoming Protocol integration with:</p>
+        <ul class="status">
+          <li>Host: this machine's IP</li>
+          <li>Port: <code id="hint-wyoming"></code></li>
+        </ul>
+      </details>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function showToast(msg, opts = {}) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("error", !!opts.error);
+  t.classList.add("show");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+$$(".tabs button").forEach(b => b.addEventListener("click", () => {
+  $$(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+  const target = b.dataset.tab;
+  $$("section[data-panel]").forEach(s => s.hidden = s.dataset.panel !== target);
+  if (target === "voices") refreshVoices();
+  if (target === "status") refreshStatus();
+}));
+
+async function refreshStatus() {
+  try {
+    const r = await fetch("/api/status");
+    const j = await r.json();
+    $("#status-json").textContent = JSON.stringify(j, null, 2);
+    $("#status-meta").textContent =
+      `v${j.version} · base ${j.engine.base_loaded ? "✓" : "✗"} · custom ${j.engine.custom_loaded ? "✓" : "✗"}`;
+    $("#hint-base").textContent = `${location.origin}/v1`;
+    $("#hint-wyoming").textContent = (j.settings.wyoming_uri || "(disabled)").replace(/^tcp:\/\//, "");
+  } catch (e) {
+    $("#status-meta").textContent = "status unavailable";
+  }
+}
+
+async function refreshVoices() {
+  const r = await fetch("/api/voices");
+  const j = await r.json();
+
+  // Populate the select on the test tab.
+  const sel = $("#voice");
+  const prev = sel.value;
+  sel.innerHTML = "";
+  if (j.builtins.length) {
+    const og = document.createElement("optgroup");
+    og.label = "Built-in";
+    for (const v of j.builtins) {
+      const opt = document.createElement("option");
+      opt.value = v.name; opt.textContent = v.name;
+      og.appendChild(opt);
+    }
+    sel.appendChild(og);
+  }
+  if (j.custom.length) {
+    const og = document.createElement("optgroup");
+    og.label = "Custom";
+    for (const v of j.custom) {
+      const opt = document.createElement("option");
+      opt.value = v.name; opt.textContent = v.name;
+      og.appendChild(opt);
+    }
+    sel.appendChild(og);
+  }
+  if (!sel.options.length) {
+    const opt = document.createElement("option");
+    opt.value = ""; opt.textContent = "(no voices configured)";
+    sel.appendChild(opt);
+  }
+  if (prev) sel.value = prev;
+
+  // Render the voice list panel.
+  const list = $("#voice-list");
+  list.innerHTML = "";
+  const all = [
+    ...j.builtins.map(v => ({ ...v, kind: "builtin" })),
+    ...j.custom.map(v => ({ ...v, kind: "custom" })),
+  ];
+  if (!all.length) {
+    list.innerHTML = '<div class="empty">No voices yet. Upload a custom voice above, or set CUSTOM_VOICE_MODEL_ID to enable built-in speakers.</div>';
+    return;
+  }
+  for (const v of all) {
+    const card = document.createElement("div");
+    card.className = "voice-card";
+    const langTxt = v.language ? `language: ${v.language}` : "";
+    const created = v.created_at ? `added ${v.created_at}` : "";
+    const transcript = v.transcript ? `“${v.transcript}”` : "";
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <strong>${escapeHtml(v.name)}</strong>
+        <div class="badges"><span class="badge ${v.kind}">${v.kind}</span></div>
+      </div>
+      <div class="meta">${[langTxt, created].filter(Boolean).map(t => `<span>${escapeHtml(t)}</span>`).join("")}</div>
+      ${transcript ? `<div class="status">${escapeHtml(transcript)}</div>` : ""}
+      ${v.kind === "custom" ? `<audio controls preload="none" src="/api/voices/${encodeURIComponent(v.name)}/audio"></audio>` : ""}
+      ${v.kind === "custom" ? `<div><button class="danger" data-del="${encodeURIComponent(v.name)}">Delete</button></div>` : ""}
+    `;
+    list.appendChild(card);
+  }
+  list.querySelectorAll("button[data-del]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const name = decodeURIComponent(btn.dataset.del);
+      if (!confirm(`Delete voice ${name}?`)) return;
+      const r = await fetch(`/api/voices/${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (r.ok) { showToast(`Deleted ${name}`); refreshVoices(); }
+      else { showToast(`Delete failed`, { error: true }); }
+    });
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+$("#btn-synth").addEventListener("click", async () => {
+  const btn = $("#btn-synth");
+  const text = $("#text").value;
+  const voice = $("#voice").value;
+  const format = $("#format").value;
+  if (!text.trim()) { showToast("Enter some text", { error: true }); return; }
+  btn.disabled = true;
+  $("#synth-status").textContent = "synthesising…";
+  try {
+    const fd = new FormData();
+    fd.append("text", text);
+    fd.append("voice", voice || "");
+    fd.append("response_format", format);
+    const t0 = performance.now();
+    const r = await fetch("/api/synthesize", { method: "POST", body: fd });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || r.statusText);
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const player = $("#player");
+    player.src = url;
+    player.play().catch(() => {});
+    const dt = ((performance.now() - t0) / 1000).toFixed(2);
+    $("#synth-status").textContent = `done in ${dt}s · ${(blob.size / 1024).toFixed(1)} KB`;
+  } catch (e) {
+    $("#synth-status").textContent = "";
+    showToast(e.message || "synthesis failed", { error: true });
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("#voice-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const form = ev.currentTarget;
+  const fd = new FormData(form);
+  $("#upload-status").textContent = "uploading…";
+  const r = await fetch("/api/voices", { method: "POST", body: fd });
+  if (r.ok) {
+    showToast("Voice saved");
+    form.reset();
+    refreshVoices();
+    $("#upload-status").textContent = "";
+  } else {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    $("#upload-status").textContent = "";
+    showToast(err.detail || "upload failed", { error: true });
+  }
+});
+
+(async function init() {
+  await refreshStatus();
+  await refreshVoices();
+})();
+</script>
+</body>
+</html>

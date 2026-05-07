@@ -1,0 +1,32 @@
+services:
+  faster-qwen-tts-aio:
+    image: ghcr.io/OWNER/faster-qwen-tts-aio:latest
+    # To build locally instead of pulling, comment out the line above and uncomment:
+    # build: .
+    container_name: faster-qwen-tts-aio
+    restart: unless-stopped
+    ports:
+      - "8080:8080"     # OpenAI-compatible HTTP API + web UI
+      - "10200:10200"   # Wyoming protocol (Home Assistant)
+    volumes:
+      - ./data:/data
+      - ./hf_cache:/root/.cache/huggingface
+    environment:
+      BASE_MODEL_ID: Qwen/Qwen3-TTS-12Hz-1.7B-Base
+      # Set this to also load the CustomVoice model for built-in named speakers.
+      # Doubles VRAM usage. Leave empty to disable.
+      CUSTOM_VOICE_MODEL_ID: ""
+      BUILTIN_SPEAKERS: "aiden,serena"
+      DEFAULT_LANGUAGE: English
+      DEFAULT_VOICE: aiden
+      DEFAULT_RESPONSE_FORMAT: wav
+      EAGER_LOAD: "true"
+      LOG_LEVEL: INFO
+      # OPENAI_API_KEY: change-me
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

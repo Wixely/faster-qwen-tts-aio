@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.venv/
+venv/
+env/
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local data (the runtime data directory; mounted in Docker)
+data/*
+!data/.gitkeep
+
+# HuggingFace cache (if developers run locally)
+.cache/
+hf_cache/
+
+# Logs
+*.log
+logs/
+
+# Tests / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checkers
+.mypy_cache/
+.ruff_cache/
+
+# Local env
+.env
+.env.local
