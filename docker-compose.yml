@@ -1,6 +1,6 @@
 services:
   faster-qwen-tts-aio:
-    image: ghcr.io/OWNER/faster-qwen-tts-aio:latest
+    image: ghcr.io/wixely/faster-qwen-tts-aio:latest
     # To build locally instead of pulling, comment out the line above and uncomment:
     # build: .
     container_name: faster-qwen-tts-aio
